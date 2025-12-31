@@ -30,7 +30,16 @@ int ACS712::calibrate() {
 }
 
 float ACS712::readCurrentDC() {
-    int adcValue = analogRead(_pin);
+    long accumulator = 0;
+    int samples = 10;
+    
+    for (int i = 0; i < samples; i++) {
+        accumulator += analogRead(_pin);
+        delay(1); 
+    }
+    
+    int adcValue = accumulator / samples;
+    
     // Formula: (Voltage - ZeroPointVoltage) / Sensitivity
     // Voltage = (adcValue / resolution) * Vref
     // ZeroPointVoltage = (zeroPoint / resolution) * Vref
