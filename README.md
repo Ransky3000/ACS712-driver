@@ -26,7 +26,7 @@ A lightweight Arduino library for the ACS712 Hall effect current sensor. Support
 ## Quick Start
 
 ```cpp
-#include "ACS712.h"
+#include <ACS712-driver.h>
 
 // Pin A0, 5.0V reference, 1023 ADC resolution
 ACS712 sensor(A0, 5.0, 1023);

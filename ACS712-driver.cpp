@@ -1,4 +1,4 @@
-#include "ACS712.h"
+#include "ACS712-driver.h"
 
 ACS712::ACS712(int pin, float voltageReference, int adcResolution) {
     _pin = pin;

@@ -5,7 +5,7 @@
   Created by Ransky3000
 */
 
-#include "ACS712.h"
+#include <ACS712-driver.h>
 
 // Connect the output of the ACS712 to Analog Pin 0
 // Connect VCC to 5V and GND to GND

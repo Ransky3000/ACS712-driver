@@ -4,7 +4,7 @@
   or just to check if your sensor is noisy.
 */
 
-#include "ACS712.h"
+#include <ACS712-driver.h>
 
 ACS712 sensor(A0, 5.0, 1023);
 
