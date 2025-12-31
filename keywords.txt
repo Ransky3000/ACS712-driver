@@ -1,0 +1,18 @@
+#######################################
+# Syntax Coloring Map for ACS712-driver
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+ACS712	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin	KEYWORD2
+setSensitivity	KEYWORD2
+calibrate	KEYWORD2
+readCurrentDC	KEYWORD2
+readCurrentAC	KEYWORD2
+getZeroPoint	KEYWORD2
