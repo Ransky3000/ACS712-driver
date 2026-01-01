@@ -71,11 +71,28 @@ void loop() {
 void calibrateAC() {
   Serial.println("***");
   Serial.println("Start AC calibration:");
+  Serial.println("Ensure NO current is flowing through the sensor.");
+  Serial.println("Send 't' from serial monitor to set the tare offset.");
+
+  boolean _resume = false;
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      char inByte = Serial.read();
+      if (inByte == 't') {
+        sensor.calibrate();
+        Serial.println("Tare complete");
+        _resume = true;
+      }
+      // Flush
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
+  }
+
   Serial.println("Connect a KNOWN AC Load (e.g. 1.0 Amp).");
   Serial.println("Then send the value of this current IN mA (e.g. 1000).");
 
   float known_current_mA = 0;
-  boolean _resume = false;
+  _resume = false; // Reset flag, do not redeclare
   
   while (_resume == false) {
     if (Serial.available() > 0) {
