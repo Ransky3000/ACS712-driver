@@ -56,7 +56,7 @@ void loop() {
     if (millis() > t + serialPrintInterval) {
       float i = sensor.getAmps();
       Serial.print("Sensor output val: ");
-      Serial.print(i, 3);
+      Serial.print(i, 4); // Show 4 decimal places
       Serial.println(" A");
       newDataReady = 0;
       t = millis();
@@ -126,12 +126,14 @@ void calibrate() {
 
   // Calculate new sensitivity
   // We need to know what the voltage is reading NOW vs the Zero Point
+  // We take a MASSIVE amount of samples to ensure the reference is rock solid
   long adcSum = 0;
-  for(int i=0; i<100; i++) {
+  int sample_count = 1000;
+  for(int i=0; i<sample_count; i++) {
       adcSum += analogRead(A0);
-      delay(2);
+      delay(1); // Small delay to allow ADC charge and accumulation
   }
-  int avgAdc = adcSum / 100;
+  float avgAdc = adcSum / (float)sample_count;
   
   // V = (ADC/1023)*5.0
   // V_zero = (Zero/1023)*5.0
@@ -163,7 +165,7 @@ void calibrate() {
     if (Serial.available() > 0) {
       char inByte = Serial.read();
       if (inByte == 'y') {
-        int zero = sensor.getZeroPoint();
+        float zero = sensor.getZeroPoint(); // Now float
         EEPROM.put(calVal_eepromAdress_Zero, zero);
         EEPROM.put(calVal_eepromAdress_Sens, newSensitivity);
         Serial.println("Values saved to EEPROM.");
@@ -209,7 +211,7 @@ void changeSavedCalFactor() {
     if (Serial.available() > 0) {
       char inByte = Serial.read();
       if (inByte == 'y') {
-        int zero = sensor.getZeroPoint();
+        float zero = sensor.getZeroPoint(); // float
         EEPROM.put(calVal_eepromAdress_Zero, zero);
         EEPROM.put(calVal_eepromAdress_Sens, newSensitivity);
         Serial.println("Values saved to EEPROM");

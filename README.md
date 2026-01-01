@@ -6,6 +6,7 @@ A lightweight Arduino library for the ACS712 Hall effect current sensor. Support
 - **readCurrentDC()**: Read DC current (e.g., batteries).
 - **readCurrentAC()**: Read AC current (RMS) (e.g., mains).
 - **calibrate()**: Automatically find the zero-point offset.
+- **Accuracy**: Uses 100-sample averaging for high stability.
 - **setSensitivity()**: Support for 5A, 20A, and 30A modules.
 
 ## Installation

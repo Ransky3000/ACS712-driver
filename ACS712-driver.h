@@ -33,7 +33,7 @@ public:
      * Ensure no current is flowing through the sensor when calling this.
      * @return The calculated zero point ADC value.
      */
-    int calibrate();
+    float calibrate();
 
     /**
      * @brief Read DC Current
@@ -68,13 +68,13 @@ public:
      * @brief Get the currently set zero point
      * @return Zero point ADC value
      */
-    int getZeroPoint();
+    float getZeroPoint();
 
     /**
      * @brief Manually set the zero point (e.g. from EEPROM)
      * @param zeroPoint The ADC value to use as zero
      */
-    void setZeroPoint(int zeroPoint);
+    void setZeroPoint(float zeroPoint);
 
     /**
      * @brief Get the current sensitivity
@@ -87,9 +87,9 @@ private:
     float _voltageReference;
     int _adcResolution;
     float _sensitivity;
-    int _zeroPoint;
+    float _zeroPoint;
     
-    float adcToVoltage(int adcValue);
+    float adcToVoltage(float adcValue);
 
     // Non-blocking state
     unsigned long _lastSampleTime;
