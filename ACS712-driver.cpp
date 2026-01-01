@@ -65,23 +65,27 @@ float ACS712::readCurrentAC(int frequency) {
     float accumulator = 0; // Changed from unsigned long to float to prevent truncation!
     unsigned long samples = 0;
     
+    // Optimization: Accumulate the square of the raw ADC counts directly.
     while ((micros() - startTime) < period) {
         int adcValue = analogRead(_pin);
-        float voltage = adcToVoltage(adcValue);
-        float zeroPointVoltage = adcToVoltage(_zeroPoint);
-        float current = (voltage - zeroPointVoltage) / _sensitivity;
         
-        accumulator += (current * current); 
+        // Subtract the zero point (DC offset)
+        float diff = adcValue - _zeroPoint;
+        
+        accumulator += (diff * diff); 
         samples++;
     }
     
-    // RMS = sqrt(mean(squares))
-    // Note: This is an approximation. For high precision, more sophisticated sampling is needed,
-    // but this behaves well for general Arduino use cases.
     if (samples == 0) return 0;
     
-    float mean = accumulator / (float)samples;
-    return sqrt(mean);
+    // Calculate RMS of the ADC counts (Root Mean Square)
+    float rmsAdc = sqrt(accumulator / (float)samples);
+    
+    // Convert RMS ADC counts to Volts
+    float rmsVolts = adcToVoltage(rmsAdc);
+    
+    // Convert Volts to Amps
+    return rmsVolts / _sensitivity;
 }
 
 float ACS712::getZeroPoint() {
