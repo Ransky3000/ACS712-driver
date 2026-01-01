@@ -65,7 +65,16 @@ Reads the sensor 100 times to find the average zero-point offset. **Ensure no cu
 Reads the current value for DC circuits.
 
 ### `float readCurrentAC(int frequency)`
-Reads the RMS current for AC circuits. Default frequency is 60Hz.
+Reads the RMS current for AC circuits. Default frequency is 60Hz. This is a blocking function.
+
+## Non-Blocking API
+For applications where you cannot afford to block execution (e.g., LED or motor control).
+
+### `bool update()`
+Call this in your `loop()` as often as possible. Returns `true` when a new reading is available.
+
+### `float getAmps()`
+Returns the last calculated DC current value.
 
 ## License
 MIT License

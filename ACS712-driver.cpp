@@ -6,6 +6,12 @@ ACS712::ACS712(int pin, float voltageReference, int adcResolution) {
     _adcResolution = adcResolution;
     _sensitivity = 0.185; // Default to 5A model (185mV/A = 0.185V/A)
     _zeroPoint = _adcResolution / 2; // Default to half scale
+    
+    // Non-blocking init
+    _lastSampleTime = 0;
+    _accumulator = 0;
+    _sampleCount = 0;
+    _lastAmps = 0.0;
 }
 
 void ACS712::begin() {
@@ -86,6 +92,33 @@ void ACS712::setZeroPoint(int zeroPoint) {
 
 float ACS712::getSensitivity() {
     return _sensitivity;
+}
+
+bool ACS712::update() {
+    unsigned long now = micros();
+    // Sample every 1ms (1000 micros)
+    if (now - _lastSampleTime >= 1000) {
+        _lastSampleTime = now;
+        _accumulator += analogRead(_pin);
+        _sampleCount++;
+
+        if (_sampleCount >= 10) {
+            int avgAdc = _accumulator / 10;
+            float voltage = adcToVoltage(avgAdc);
+            float zeroPointVoltage = adcToVoltage(_zeroPoint);
+            _lastAmps = (voltage - zeroPointVoltage) / _sensitivity;
+            
+            // Reset
+            _accumulator = 0;
+            _sampleCount = 0;
+            return true; // New data available
+        }
+    }
+    return false;
+}
+
+float ACS712::getAmps() {
+    return _lastAmps;
 }
 
 float ACS712::adcToVoltage(int adcValue) {

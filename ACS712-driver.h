@@ -48,6 +48,22 @@ public:
      */
     float readCurrentAC(int frequency = 60);
 
+    // --- Non-Blocking API ---
+
+    /**
+     * @brief Update routine, call this in your loop() as fast as possible.
+     * @return true if a new sample set is adequate and a new current value is calculated.
+     */
+    bool update();
+
+    /**
+     * @brief Get the last calculated DC Current (from update).
+     * @return Current in Amperes
+     */
+    float getAmps();
+
+    // ------------------------
+
     /**
      * @brief Get the currently set zero point
      * @return Zero point ADC value
@@ -74,6 +90,12 @@ private:
     int _zeroPoint;
     
     float adcToVoltage(int adcValue);
+
+    // Non-blocking state
+    unsigned long _lastSampleTime;
+    long _accumulator;
+    int _sampleCount;
+    float _lastAmps;
 };
 
 #endif
