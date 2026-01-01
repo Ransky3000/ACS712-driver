@@ -54,6 +54,18 @@ public:
      */
     int getZeroPoint();
 
+    /**
+     * @brief Manually set the zero point (e.g. from EEPROM)
+     * @param zeroPoint The ADC value to use as zero
+     */
+    void setZeroPoint(int zeroPoint);
+
+    /**
+     * @brief Get the current sensitivity
+     * @return Sensitivity in V/A
+     */
+    float getSensitivity();
+
 private:
     int _pin;
     float _voltageReference;

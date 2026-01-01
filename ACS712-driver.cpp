@@ -80,6 +80,14 @@ int ACS712::getZeroPoint() {
     return _zeroPoint;
 }
 
+void ACS712::setZeroPoint(int zeroPoint) {
+    _zeroPoint = zeroPoint;
+}
+
+float ACS712::getSensitivity() {
+    return _sensitivity;
+}
+
 float ACS712::adcToVoltage(int adcValue) {
     return (adcValue / (float)_adcResolution) * _voltageReference;
 }
