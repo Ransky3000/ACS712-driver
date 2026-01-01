@@ -1,181 +1,227 @@
 /*
-  AdvancedCalibration.ino - Interactive Calibration with EEPROM support
-  
-  This sketch guides you through:
-  1. Calibrating the Zero Point (Tare)
-  2. Calibrating the Sensitivity (Slope) using a known load
-  3. Saving these values to EEPROM (or printing them if you don't use EEPROM)
-  
-  Usage:
-  - Open Serial Monitor (9600 baud)
-  - Follow the on-screen instructions
+   -------------------------------------------------------------------------------------
+   ACS712-driver
+   Arduino library for ACS712 Current Sensor
+   -------------------------------------------------------------------------------------
+   
+   This example file shows how to calibrate the sensor and optionally store the calibration
+   value in EEPROM, and also how to change the value manually.
+   Refined to match the style of common HX711 calibration sketches for familiarity.
 */
 
 #include <ACS712-driver.h>
 #include <EEPROM.h>
 
-// Connect the output of the ACS712 to Analog Pin 0
+// Pins
 ACS712 sensor(A0, 5.0, 1023);
 
-// EEPROM Addresses
-const int ADDR_ZERO_POINT = 0;   // Takes 2 bytes (int)
-const int ADDR_SENSITIVITY = 4;  // Takes 4 bytes (float)
+const int calVal_eepromAdress_Zero = 0;
+const int calVal_eepromAdress_Sens = 4;
+unsigned long t = 0;
 
 void setup() {
-  Serial.begin(9600);
-  
-  // Wait for serial to be ready
-  while (!Serial) { delay(10); }
+  Serial.begin(9600); delay(10);
+  Serial.println();
+  Serial.println("Starting...");
 
-  Serial.println("\n=== ACS712 Advanced Calibration Tool ===");
-  Serial.println("Commands:");
-  Serial.println("  't' - Tare (Calibrate Zero Point)");
-  Serial.println("  'c' - Calibrate Slope (requires known current)");
-  Serial.println("  's' - Save current settings to EEPROM");
-  Serial.println("  'l' - Load settings from EEPROM");
-  Serial.println("  'r' - Reset to defaults");
-  Serial.println("========================================");
+  // Default sensitivity for 5A model as a starting point
+  sensor.setSensitivity(0.185); 
   
-  // Default start
-  sensor.setSensitivity(0.185); // Start with typical 5A sensitivity
+  // Attempt to load from EEPROM on startup?
+  // Uncomment the next lines if you want auto-load on boot
+  /*
+  int zero; float sens;
+  EEPROM.get(calVal_eepromAdress_Zero, zero);
+  EEPROM.get(calVal_eepromAdress_Sens, sens);
+  // Basic validation
+  if(sens > 0.001) {
+    sensor.setZeroPoint(zero);
+    sensor.setSensitivity(sens);
+  }
+  */
+
+  Serial.println("Startup is complete");
+  Serial.println("Send 't' to Tare, 'r' to Calibrate, 'c' to Edit Manual.");
 }
 
 void loop() {
-  if (Serial.available()) {
-    char cmd = Serial.read();
-    // Flush rest of line
-    while(Serial.available() > 0 && Serial.read() != '\n'); 
+  static boolean newDataReady = 0;
+  const int serialPrintInterval = 500; 
 
-    if (cmd == 't') {
-      calibrateZero();
-    } else if (cmd == 'c') {
-      calibrateSlope();
-    } else if (cmd == 's') {
-      saveToEEPROM();
-    } else if (cmd == 'l') {
-      loadFromEEPROM();
-    } else if (cmd == 'r') {
-      sensor.setSensitivity(0.185);
-      Serial.println("Reset to default sensitivity (0.185 V/A). Zero point not changed.");
+  // Check for new data/start next conversion:
+  if (sensor.update()) newDataReady = true;
+
+  // Get smoothed value from the dataset:
+  if (newDataReady) {
+    if (millis() > t + serialPrintInterval) {
+      float i = sensor.getAmps();
+      Serial.print("Sensor output val: ");
+      Serial.print(i, 3);
+      Serial.println(" A");
+      newDataReady = 0;
+      t = millis();
     }
   }
 
-  // Show live reading
-  static unsigned long lastPrint = 0;
-  if (millis() - lastPrint > 500) {
-    float current = sensor.readCurrentDC();
-    Serial.print("Current: ");
-    Serial.print(current, 3);
-    Serial.print(" A | Zero: ");
-    Serial.print(sensor.getZeroPoint());
-    Serial.print(" | Sens: ");
-    Serial.println(sensor.getSensitivity(), 4);
-    lastPrint = millis();
+  // Receive command from serial terminal
+  if (Serial.available() > 0) {
+    char inByte = Serial.read();
+    
+    // Stop printing while we handle commands
+    if (inByte == 't') {
+        Serial.println("Taring...");
+        sensor.calibrate(); 
+        Serial.println("Tare complete. Press 'enter' to continue measuring.");
+        
+        while(Serial.available() > 0) Serial.read(); // Flush
+        while(!Serial.available()); // Wait for user info
+        while(Serial.available() > 0) Serial.read(); // Flush again
+    }
+    else if (inByte == 'r') calibrate(); 
+    else if (inByte == 'c') changeSavedCalFactor(); 
+    
+    // Flush buffer
+    while(Serial.available() > 0 && Serial.read() != '\n');
+    t = millis(); // Reset timer so we don't print immediately
   }
 }
 
-void calibrateZero() {
-  Serial.println("\n--- Zero Point Calibration ---");
-  Serial.println("Ensure NO Current is flowing through the sensor.");
-  Serial.println("Type 'y' and press ENTER when ready...");
-  
-  while (!Serial.available());
-  char c = Serial.read();
-  // Flush
-  while(Serial.available() > 0 && Serial.read() != '\n');
-  
-  if (c == 'y' || c == 'Y') {
-    Serial.println("Calibrating...");
-    int zero = sensor.calibrate();
-    Serial.print("New Zero Point: ");
-    Serial.println(zero);
-  } else {
-    Serial.println("Cancelled.");
-  }
-}
+void calibrate() {
+  Serial.println("***");
+  Serial.println("Start calibration:");
+  Serial.println("Ensure NO current is flowing through the sensor.");
+  Serial.println("Send 't' from serial monitor to set the tare offset.");
 
-void calibrateSlope() {
-  Serial.println("\n--- Slope (Sensitivity) Calibration ---");
-  Serial.println("1. You must have already Calibrated Zero ('t').");
-  Serial.println("2. Apply a KNOWN current (e.g., 1.0 Amp constant load).");
-  Serial.println("   (Ideally use a multimeter in series to verify the actual current)");
-  Serial.println("Enter the KNOWN current in Amps (e.g., 1.05) and press ENTER:");
-  
-  while (!Serial.available());
-  float knownCurrent = Serial.parseFloat();
-  // Flush
-  while(Serial.available() > 0 && Serial.read() != '\n');
-
-  if (knownCurrent == 0) {
-    Serial.println("Error: Current cannot be zero for slope calibration. Use 't' instead.");
-    return;
+  boolean _resume = false;
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      char inByte = Serial.read();
+      if (inByte == 't') {
+        sensor.calibrate();
+        Serial.println("Tare complete");
+        _resume = true;
+      }
+      // Flush
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
   }
-  
-  Serial.print("Measuring current with OLD sensitivity...");
-  
-  // Take a good long average
+
+  Serial.println("Now, apply a KNOWN current (e.g. 1000.0 for 1A).");
+  Serial.println("Then send the value of this current in mA (milliAmps) from serial monitor.");
+
+  float known_current_mA = 0;
+  _resume = false;
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      known_current_mA = Serial.parseFloat();
+      if (known_current_mA != 0) {
+        Serial.print("Known current is: ");
+        Serial.print(known_current_mA);
+        Serial.println(" mA");
+        _resume = true;
+      }
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
+  }
+
+  // Calculate new sensitivity
+  // We need to know what the voltage is reading NOW vs the Zero Point
   long adcSum = 0;
-  int samples = 50;
-  for (int i=0; i<samples; i++) {
-    adcSum += analogRead(A0);
-    delay(10);
+  for(int i=0; i<100; i++) {
+      adcSum += analogRead(A0);
+      delay(2);
   }
-  int avgAdc = adcSum / samples;
+  int avgAdc = adcSum / 100;
   
-  // Calculate voltage from the reading
-  // Volts = (ADC / 1023) * 5.0
-  float voltageRead = (avgAdc / 1023.0) * 5.0;
+  // V = (ADC/1023)*5.0
+  // V_zero = (Zero/1023)*5.0
+  // Diff = V - V_zero
+  // Sensitivity = Diff / Current (Amps)
   
-  // Calculate voltage at Zero Point
-  // VoltsZero = (Zero / 1023) * 5.0
-  float voltageZero = (sensor.getZeroPoint() / 1023.0) * 5.0;
+  float voltage = (avgAdc / 1023.0) * 5.0;
+  float zeroVolts = (sensor.getZeroPoint() / 1023.0) * 5.0;
+  float diff = voltage - zeroVolts;
   
-  // The logic:
-  // Current = (VoltageRead - VoltageZero) / Sensitivity
-  // Therefore: Sensitivity = (VoltageRead - VoltageZero) / KnownCurrent
+  // Convert mA to Amps for calculation
+  float known_current_Amps = known_current_mA / 1000.0;
   
-  float diffVoltage = voltageRead - voltageZero;
-  float newSensitivity = diffVoltage / knownCurrent;
+  float newSensitivity = diff / known_current_Amps;
   
-  // Safety check, sensitivity should be positive
+  // Ensure positive
   if (newSensitivity < 0) newSensitivity = -newSensitivity;
-  
-  Serial.println(" Done.");
-  Serial.print("Old Sensitivity: "); Serial.println(sensor.getSensitivity(), 4);
-  Serial.print("New Sensitivity: "); Serial.println(newSensitivity, 4);
+
+  Serial.print("New sensitivity has been set to: ");
+  Serial.print(newSensitivity, 4);
+  Serial.println(" V/A");
   
   sensor.setSensitivity(newSensitivity);
-  Serial.println("Sensitivity updated! Don't forget to Save ('s').");
-}
 
-void saveToEEPROM() {
-  Serial.println("\n--- Saving to EEPROM ---");
-  int zero = sensor.getZeroPoint();
-  float sens = sensor.getSensitivity();
-  
-  EEPROM.put(ADDR_ZERO_POINT, zero);
-  EEPROM.put(ADDR_SENSITIVITY, sens);
-  
-  Serial.println("Saved!");
-}
+  Serial.print("Save this value to EEPROM? y/n");
 
-void loadFromEEPROM() {
-  Serial.println("\n--- Loading from EEPROM ---");
-  int zero;
-  float sens;
-  
-  EEPROM.get(ADDR_ZERO_POINT, zero);
-  EEPROM.get(ADDR_SENSITIVITY, sens);
-  
-  Serial.print("Loaded Zero: "); Serial.println(zero);
-  Serial.print("Loaded Sens: "); Serial.println(sens, 4);
-  
-  // Basic validation
-  if (zero < 0 || zero > 1023 || sens < 0.001 || sens > 1.0) {
-    Serial.println("Warning: EEPROM values look invalid. Ignoring.");
-  } else {
-    sensor.setZeroPoint(zero);
-    sensor.setSensitivity(sens);
-    Serial.println("Applied settings.");
+  _resume = false;
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      char inByte = Serial.read();
+      if (inByte == 'y') {
+        int zero = sensor.getZeroPoint();
+        EEPROM.put(calVal_eepromAdress_Zero, zero);
+        EEPROM.put(calVal_eepromAdress_Sens, newSensitivity);
+        Serial.println("Values saved to EEPROM.");
+        _resume = true;
+      }
+      else if (inByte == 'n') {
+        Serial.println("Value not saved to EEPROM");
+        _resume = true;
+      }
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
   }
+
+  Serial.println("End calibration");
+  Serial.println("***");
+}
+
+void changeSavedCalFactor() {
+  float oldSensitivity = sensor.getSensitivity();
+  boolean _resume = false;
+  Serial.println("***");
+  Serial.print("Current sensitivity is: ");
+  Serial.println(oldSensitivity, 4);
+  Serial.println("Now, send the new value from serial monitor, i.e. 0.185");
+  
+  float newSensitivity;
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      newSensitivity = Serial.parseFloat();
+      if (newSensitivity != 0) {
+        Serial.print("New sensitivity is: ");
+        Serial.println(newSensitivity, 4);
+        sensor.setSensitivity(newSensitivity);
+        _resume = true;
+      }
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
+  }
+  
+  _resume = false;
+  Serial.print("Save this value to EEPROM? y/n");
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      char inByte = Serial.read();
+      if (inByte == 'y') {
+        int zero = sensor.getZeroPoint();
+        EEPROM.put(calVal_eepromAdress_Zero, zero);
+        EEPROM.put(calVal_eepromAdress_Sens, newSensitivity);
+        Serial.println("Values saved to EEPROM");
+        _resume = true;
+      }
+      else if (inByte == 'n') {
+        Serial.println("Value not saved to EEPROM");
+        _resume = true;
+      }
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
+  }
+  Serial.println("End change value");
+  Serial.println("***");
 }
