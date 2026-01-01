@@ -26,7 +26,7 @@ void setup() {
   // Default start
   sensor.setSensitivity(0.185); 
   
-  Serial.println("Send 't' to Tare (Zero), 'r' to Calibrate (Known AC Load).");
+  Serial.println("Send 't' to Tare, 'r' to Calibrate, 'c' to Edit Manual.");
 }
 
 void loop() {
@@ -58,6 +58,9 @@ void loop() {
     }
     else if (inByte == 'r') {
         calibrateAC(); 
+    }
+    else if (inByte == 'c') {
+        changeSavedCalFactor();
     }
     
     // Flush
@@ -141,5 +144,50 @@ void calibrateAC() {
   }
 
   Serial.println("End calibration");
+  Serial.println("***");
+}
+
+void changeSavedCalFactor() {
+  float oldSensitivity = sensor.getSensitivity();
+  boolean _resume = false;
+  Serial.println("***");
+  Serial.print("Current sensitivity is: ");
+  Serial.println(oldSensitivity, 4);
+  Serial.println("Now, send the new value from serial monitor, i.e. 0.185");
+  
+  float newSensitivity;
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      newSensitivity = Serial.parseFloat();
+      if (newSensitivity != 0) {
+        Serial.print("New sensitivity is: ");
+        Serial.println(newSensitivity, 4);
+        sensor.setSensitivity(newSensitivity);
+        _resume = true;
+      }
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
+  }
+  
+  _resume = false;
+  Serial.print("Save this value to EEPROM? y/n");
+  while (_resume == false) {
+    if (Serial.available() > 0) {
+      char inByte = Serial.read();
+      if (inByte == 'y') {
+        float zero = sensor.getZeroPoint(); // float
+        EEPROM.put(calVal_eepromAdress_Zero, zero);
+        EEPROM.put(calVal_eepromAdress_Sens, newSensitivity);
+        Serial.println("Values saved to EEPROM");
+        _resume = true;
+      }
+      else if (inByte == 'n') {
+        Serial.println("Value not saved to EEPROM");
+        _resume = true;
+      }
+      while(Serial.available() > 0 && Serial.read() != '\n'); 
+    }
+  }
+  Serial.println("End change value");
   Serial.println("***");
 }
