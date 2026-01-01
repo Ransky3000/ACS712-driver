@@ -62,7 +62,7 @@ float ACS712::readCurrentAC(int frequency) {
     int period = 1000000 / frequency;
     unsigned long startTime = micros();
     
-    unsigned long accumulator = 0;
+    float accumulator = 0; // Changed from unsigned long to float to prevent truncation!
     unsigned long samples = 0;
     
     while ((micros() - startTime) < period) {
