@@ -60,7 +60,7 @@ Sets the sensitivity in Volts per Ampere.
 - 30A module: 0.066
 
 ### `int calibrate()`
-Reads the sensor 100 times to find the average zero-point offset. **Ensure no current is flowing during calibration.** Returns the calculated offset.
+Reads the sensor 100 times to find the average zero-point offset. Returns the calculated offset.
 
 ### `float readCurrentDC()`
 Reads the current value for DC circuits.
